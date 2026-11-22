@@ -43,33 +43,171 @@ const provider = new GoogleAuthProvider();
 const belepesBtn = document.getElementById("belepesBtn");
 const kijelentkezesBtn = document.getElementById("kijelentkezesBtn");
 const felhasznaloNev = document.getElementById("felhasznaloNev");
+const nyelvValaszto = document.getElementById("nyelvValaszto");
 
-// Aktuális felhasználó
+// AKTUÁLIS FELHASZNÁLÓ
 let aktualisFelhasznalo = null;
 
-// Adatbázis figyelők leállítása
+// ADATBÁZIS FIGYELŐK
 let sajatFigyelo = null;
 let kozosFigyelo = null;
+
+// AKTUÁLIS NYELV
+let aktualisNyelv = "hu";
+
+
+// NYELVI SZÖVEGEK
+const szovegek = {
+
+    hu: {
+        language: "Nyelv:",
+        title: "Teendőim",
+        login: "Bejelentkezés Google-fiókkal",
+        logout: "Kijelentkezés",
+        welcome: "Üdvözöllek a teendőkezelő oldalon!",
+        privateTitle: "Saját teendőim",
+        sharedTitle: "Közös teendők",
+        privateAdd: "+ Új saját teendő",
+        sharedAdd: "+ Új közös teendő",
+
+        loggedIn: "Bejelentkezve: ",
+        loginError: "Nem sikerült a bejelentkezés!",
+        logoutError: "Nem sikerült kijelentkezni!",
+        loginFirst: "Először jelentkezz be Google-fiókoddal!",
+        newTask: "Mi a teendőd?",
+        editTask: "Írd át a feladatot:",
+        saveError: "Nem sikerült menteni a módosítást!",
+        editError: "Nem sikerült módosítani a feladatot!",
+        deleteError: "Nem sikerült törölni a feladatot!",
+        addError: "Nem sikerült hozzáadni a feladatot!"
+    },
+
+    en: {
+        language: "Language:",
+        title: "My Tasks",
+        login: "Sign in with Google",
+        logout: "Sign out",
+        welcome: "Welcome to the task manager!",
+        privateTitle: "My Private Tasks",
+        sharedTitle: "Shared Tasks",
+        privateAdd: "+ Add Private Task",
+        sharedAdd: "+ Add Shared Task",
+
+        loggedIn: "Signed in as: ",
+        loginError: "Could not sign in!",
+        logoutError: "Could not sign out!",
+        loginFirst: "Please sign in with your Google account first!",
+        newTask: "What do you need to do?",
+        editTask: "Edit the task:",
+        saveError: "Could not save the changes!",
+        editError: "Could not edit the task!",
+        deleteError: "Could not delete the task!",
+        addError: "Could not add the task!"
+    },
+
+    pl: {
+        language: "Język:",
+        title: "Moje zadania",
+        login: "Zaloguj się przez Google",
+        logout: "Wyloguj się",
+        welcome: "Witamy w menedżerze zadań!",
+        privateTitle: "Moje prywatne zadania",
+        sharedTitle: "Wspólne zadania",
+        privateAdd: "+ Dodaj prywatne zadanie",
+        sharedAdd: "+ Dodaj wspólne zadanie",
+
+        loggedIn: "Zalogowano jako: ",
+        loginError: "Nie udało się zalogować!",
+        logoutError: "Nie udało się wylogować!",
+        loginFirst: "Najpierw zaloguj się przez konto Google!",
+        newTask: "Co masz do zrobienia?",
+        editTask: "Edytuj zadanie:",
+        saveError: "Nie udało się zapisać zmian!",
+        editError: "Nie udało się edytować zadania!",
+        deleteError: "Nie udało się usunąć zadania!",
+        addError: "Nie udało się dodać zadania!"
+    }
+
+};
+
+
+// NYELV BEÁLLÍTÁSA
+function nyelvBeallitasa(nyelv) {
+
+    aktualisNyelv = nyelv;
+
+    const szoveg = szovegek[nyelv];
+
+    // HTML NYELVÉNEK BEÁLLÍTÁSA
+    document.documentElement.lang = nyelv;
+
+    // ÁLLANDÓ SZÖVEGEK FORDÍTÁSA
+    document.querySelectorAll("[data-i18n]").forEach(function(elem) {
+
+        const kulcs = elem.getAttribute("data-i18n");
+
+        if (szoveg[kulcs]) {
+            elem.textContent = szoveg[kulcs];
+        }
+
+    });
+
+    // BEJELENTKEZETT FELHASZNÁLÓ NEVE
+    if (aktualisFelhasznalo) {
+
+        felhasznaloNev.textContent =
+            szoveg.loggedIn + aktualisFelhasznalo.displayName;
+
+    }
+
+}
+
+
+// NYELVVÁLTÓ MŰKÖDÉSE
+nyelvValaszto.addEventListener("change", function() {
+
+    nyelvBeallitasa(nyelvValaszto.value);
+
+});
+
+
+// ALAPÉRTELMEZETT NYELV
+nyelvBeallitasa("hu");
 
 
 // GOOGLE BEJELENTKEZÉS
 belepesBtn.addEventListener("click", async function() {
+
     try {
+
         await signInWithPopup(auth, provider);
+
     } catch (hiba) {
+
         console.error("Bejelentkezési hiba:", hiba);
-        alert("Nem sikerült a bejelentkezés!");
+
+        alert(szovegek[aktualisNyelv].loginError);
+
     }
+
 });
 
 
 // GOOGLE KIJELENTKEZÉS
 kijelentkezesBtn.addEventListener("click", async function() {
+
     try {
+
         await signOut(auth);
+
     } catch (hiba) {
+
         console.error("Kijelentkezési hiba:", hiba);
+
+        alert(szovegek[aktualisNyelv].logoutError);
+
     }
+
 });
 
 
@@ -88,11 +226,13 @@ function listaMegjelenitese(listaAzonosito, dokumentumok, gyujtemeny) {
 
         // PIPA
         const pipa = document.createElement("input");
+
         pipa.type = "checkbox";
         pipa.checked = adat.completed || false;
 
-        // SZÖVEG
+        // FELADAT SZÖVEGE
         const szoveg = document.createElement("span");
+
         szoveg.textContent = adat.text;
 
         szoveg.style.textDecoration =
@@ -100,58 +240,80 @@ function listaMegjelenitese(listaAzonosito, dokumentumok, gyujtemeny) {
 
         // TÖRLÉS GOMB
         const torlesGomb = document.createElement("button");
+
         torlesGomb.textContent = "X";
         torlesGomb.classList.add("torlesGomb");
 
         // KIPIPÁLÁS
         pipa.addEventListener("change", async function() {
+
             try {
+
                 await updateDoc(
                     doc(db, gyujtemeny, dokumentum.id),
                     {
                         completed: pipa.checked
                     }
                 );
+
             } catch (hiba) {
+
                 console.error("Mentési hiba:", hiba);
-                alert("Nem sikerült menteni a módosítást!");
+
+                alert(szovegek[aktualisNyelv].saveError);
+
             }
+
         });
 
         // SZERKESZTÉS DUPLA KATTINTÁSSAL
         szoveg.addEventListener("dblclick", async function() {
 
             const ujSzoveg = prompt(
-                "Írd át a feladatot:",
+                szovegek[aktualisNyelv].editTask,
                 adat.text
             );
 
             if (ujSzoveg !== null && ujSzoveg.trim() !== "") {
+
                 try {
+
                     await updateDoc(
                         doc(db, gyujtemeny, dokumentum.id),
                         {
                             text: ujSzoveg.trim()
                         }
                     );
+
                 } catch (hiba) {
+
                     console.error("Szerkesztési hiba:", hiba);
-                    alert("Nem sikerült módosítani a feladatot!");
+
+                    alert(szovegek[aktualisNyelv].editError);
+
                 }
+
             }
+
         });
 
         // TÖRLÉS
         torlesGomb.addEventListener("click", async function() {
 
             try {
+
                 await deleteDoc(
                     doc(db, gyujtemeny, dokumentum.id)
                 );
+
             } catch (hiba) {
+
                 console.error("Törlési hiba:", hiba);
-                alert("Nem sikerült törölni a feladatot!");
+
+                alert(szovegek[aktualisNyelv].deleteError);
+
             }
+
         });
 
         ujElem.appendChild(pipa);
@@ -159,53 +321,67 @@ function listaMegjelenitese(listaAzonosito, dokumentumok, gyujtemeny) {
         ujElem.appendChild(torlesGomb);
 
         lista.appendChild(ujElem);
+
     });
+
 }
 
 
 // ÚJ FELADAT HOZZÁADÁSA
-function teendoHozzaadas(gombAzonosito, listaAzonosito, gyujtemeny) {
+function teendoHozzaadas(gombAzonosito, gyujtemeny) {
 
     const gomb = document.getElementById(gombAzonosito);
 
     gomb.addEventListener("click", async function() {
 
         if (!aktualisFelhasznalo) {
-            alert("Először jelentkezz be Google-fiókoddal!");
+
+            alert(szovegek[aktualisNyelv].loginFirst);
+
             return;
+
         }
 
-        const feladat = prompt("Mi a teendőd?");
+        const feladat = prompt(
+            szovegek[aktualisNyelv].newTask
+        );
 
         if (feladat !== null && feladat.trim() !== "") {
 
             try {
+
                 await addDoc(collection(db, gyujtemeny), {
+
                     text: feladat.trim(),
                     completed: false,
                     ownerUid: aktualisFelhasznalo.uid,
                     createdAt: serverTimestamp()
+
                 });
 
             } catch (hiba) {
+
                 console.error("Hozzáadási hiba:", hiba);
-                alert("Nem sikerült hozzáadni a feladatot!");
+
+                alert(szovegek[aktualisNyelv].addError);
+
             }
+
         }
+
     });
+
 }
 
 
 // A KÉT LISTA GOMBJAI
 teendoHozzaadas(
     "ujTeendoBtn",
-    "teendoLista",
     "privateTasks"
 );
 
 teendoHozzaadas(
     "ujTeendoBtn2",
-    "teendoLista2",
     "sharedTasks"
 );
 
@@ -215,25 +391,29 @@ onAuthStateChanged(auth, function(user) {
 
     aktualisFelhasznalo = user;
 
-    // Korábbi figyelők leállítása
+    // KORÁBBI FIGYELŐK LEÁLLÍTÁSA
     if (sajatFigyelo) {
+
         sajatFigyelo();
         sajatFigyelo = null;
+
     }
 
     if (kozosFigyelo) {
+
         kozosFigyelo();
         kozosFigyelo = null;
+
     }
 
-    // Listák törlése kijelentkezéskor
+    // LISTÁK TÖRLÉSE
     document.getElementById("teendoLista").innerHTML = "";
     document.getElementById("teendoLista2").innerHTML = "";
 
     if (user) {
 
         felhasznaloNev.textContent =
-            "Bejelentkezve: " + user.displayName;
+            szovegek[aktualisNyelv].loggedIn + user.displayName;
 
         // SAJÁT FELADATOK FIGYELÉSE
         const sajatLekerdezes = query(
@@ -243,30 +423,43 @@ onAuthStateChanged(auth, function(user) {
 
         sajatFigyelo = onSnapshot(
             sajatLekerdezes,
+
             function(snapshot) {
+
                 listaMegjelenitese(
                     "teendoLista",
                     snapshot.docs,
                     "privateTasks"
                 );
+
             },
+
             function(hiba) {
+
                 console.error("Saját feladatok hibája:", hiba);
+
             }
         );
+
 
         // KÖZÖS FELADATOK FIGYELÉSE
         kozosFigyelo = onSnapshot(
             collection(db, "sharedTasks"),
+
             function(snapshot) {
+
                 listaMegjelenitese(
                     "teendoLista2",
                     snapshot.docs,
                     "sharedTasks"
                 );
+
             },
+
             function(hiba) {
+
                 console.error("Közös feladatok hibája:", hiba);
+
             }
         );
 
@@ -275,4 +468,5 @@ onAuthStateChanged(auth, function(user) {
         felhasznaloNev.textContent = "";
 
     }
+
 });
