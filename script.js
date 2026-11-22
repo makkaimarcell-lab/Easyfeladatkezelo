@@ -5,10 +5,13 @@ import {
     getFirestore,
     collection,
     addDoc,
-    getDocs,
     deleteDoc,
     doc,
-    updateDoc
+    updateDoc,
+    onSnapshot,
+    query,
+    where,
+    serverTimestamp
 } from "https://www.gstatic.com/firebasejs/13.4.0/firebase-firestore.js";
 
 import {
@@ -19,7 +22,7 @@ import {
     signOut
 } from "https://www.gstatic.com/firebasejs/13.4.0/firebase-auth.js";
 
-// Firebase beállítások
+// FIREBASE BEÁLLÍTÁSOK
 const firebaseConfig = {
     apiKey: "AIzaSyA92juG_RYS36AZYM9NVoLmlGsDoaIPVx0",
     authDomain: "easy-feladatkezelo.firebaseapp.com",
@@ -29,183 +32,247 @@ const firebaseConfig = {
     appId: "1:1083951304432:web:aeb8ad3ab1c4c842423c35"
 };
 
-// Firebase elindítása
+// FIREBASE ELINDÍTÁSA
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// Bejelentkezés beállítása
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
+// HTML ELEMEK
 const belepesBtn = document.getElementById("belepesBtn");
-const felhasznaloNev = document.getElementById("felhasznaloNev");
 const kijelentkezesBtn = document.getElementById("kijelentkezesBtn");
+const felhasznaloNev = document.getElementById("felhasznaloNev");
 
-// Google-belépés
+// Aktuális felhasználó
+let aktualisFelhasznalo = null;
+
+// Adatbázis figyelők leállítása
+let sajatFigyelo = null;
+let kozosFigyelo = null;
+
+
+// GOOGLE BEJELENTKEZÉS
 belepesBtn.addEventListener("click", async function() {
     try {
-        console.log("A bejelentkezés gomb működik!");
-
-        const eredmeny = await signInWithPopup(auth, provider);
-
-        felhasznaloNev.textContent =
-            "Bejelentkezve: " + eredmeny.user.displayName;
-
+        await signInWithPopup(auth, provider);
     } catch (hiba) {
-        alert("Hiba történt a bejelentkezéskor!");
-        console.error(hiba);
+        console.error("Bejelentkezési hiba:", hiba);
+        alert("Nem sikerült a bejelentkezés!");
     }
 });
 
-// Bejelentkezési állapot figyelése
-onAuthStateChanged(auth, function(user) {
-    if (user) {
-        felhasznaloNev.textContent =
-            "Bejelentkezve: " + user.displayName;
-    } else {
-        felhasznaloNev.textContent = "";
-    }
-});
 
-// Google-kijelentkezés
+// GOOGLE KIJELENTKEZÉS
 kijelentkezesBtn.addEventListener("click", async function() {
     try {
         await signOut(auth);
-        felhasznaloNev.textContent = "";
     } catch (hiba) {
         console.error("Kijelentkezési hiba:", hiba);
     }
 });
 
-// Feladatok mentése
-function mentes(listaAzonosito) {
+
+// FELADATLISTA MEGJELENÍTÉSE
+function listaMegjelenitese(listaAzonosito, dokumentumok, gyujtemeny) {
+
     const lista = document.getElementById(listaAzonosito);
-    const pipak = lista.querySelectorAll("input");
 
-    pipak.forEach(function(pipa) {
-        if (pipa.checked) {
-            pipa.setAttribute("checked", "");
-        } else {
-            pipa.removeAttribute("checked");
-        }
-    });
+    lista.innerHTML = "";
 
-    localStorage.setItem(listaAzonosito, lista.innerHTML);
-}
+    dokumentumok.forEach(function(dokumentum) {
 
-// Feladatok visszatöltése
-function visszatoltes(listaAzonosito) {
-    const lista = document.getElementById(listaAzonosito);
-    lista.innerHTML = localStorage.getItem(listaAzonosito) || "";
-}
+        const adat = dokumentum.data();
 
-// Események hozzáadása a feladatokhoz
-function esemenyekHozzaadasa(listaAzonosito) {
-    const lista = document.getElementById(listaAzonosito);
-    const elemek = lista.querySelectorAll("li");
+        const ujElem = document.createElement("li");
 
-    elemek.forEach(function(ujElem) {
-        const pipa = ujElem.querySelector("input");
-        const szoveg = ujElem.querySelector("span");
-        const torlesGomb = ujElem.querySelector("button");
+        // PIPA
+        const pipa = document.createElement("input");
+        pipa.type = "checkbox";
+        pipa.checked = adat.completed || false;
 
-        // Feladat szerkesztése dupla kattintással
-        szoveg.addEventListener("dblclick", function() {
-            let ujSzoveg = prompt(
+        // SZÖVEG
+        const szoveg = document.createElement("span");
+        szoveg.textContent = adat.text;
+
+        szoveg.style.textDecoration =
+            pipa.checked ? "line-through" : "none";
+
+        // TÖRLÉS GOMB
+        const torlesGomb = document.createElement("button");
+        torlesGomb.textContent = "X";
+        torlesGomb.classList.add("torlesGomb");
+
+        // KIPIPÁLÁS
+        pipa.addEventListener("change", async function() {
+            try {
+                await updateDoc(
+                    doc(db, gyujtemeny, dokumentum.id),
+                    {
+                        completed: pipa.checked
+                    }
+                );
+            } catch (hiba) {
+                console.error("Mentési hiba:", hiba);
+                alert("Nem sikerült menteni a módosítást!");
+            }
+        });
+
+        // SZERKESZTÉS DUPLA KATTINTÁSSAL
+        szoveg.addEventListener("dblclick", async function() {
+
+            const ujSzoveg = prompt(
                 "Írd át a feladatot:",
-                szoveg.textContent
+                adat.text
             );
 
             if (ujSzoveg !== null && ujSzoveg.trim() !== "") {
-                szoveg.textContent = ujSzoveg.trim();
-                mentes(listaAzonosito);
+                try {
+                    await updateDoc(
+                        doc(db, gyujtemeny, dokumentum.id),
+                        {
+                            text: ujSzoveg.trim()
+                        }
+                    );
+                } catch (hiba) {
+                    console.error("Szerkesztési hiba:", hiba);
+                    alert("Nem sikerült módosítani a feladatot!");
+                }
             }
         });
 
-        // Áthúzás visszaállítása
-        if (pipa.checked) {
-            szoveg.style.textDecoration = "line-through";
-        }
+        // TÖRLÉS
+        torlesGomb.addEventListener("click", async function() {
 
-        // Törlés
-        torlesGomb.addEventListener("click", function() {
-            ujElem.remove();
-            mentes(listaAzonosito);
-        });
-
-        // Kipipálás
-        pipa.addEventListener("change", function() {
-            if (pipa.checked) {
-                szoveg.style.textDecoration = "line-through";
-            } else {
-                szoveg.style.textDecoration = "none";
+            try {
+                await deleteDoc(
+                    doc(db, gyujtemeny, dokumentum.id)
+                );
+            } catch (hiba) {
+                console.error("Törlési hiba:", hiba);
+                alert("Nem sikerült törölni a feladatot!");
             }
-
-            mentes(listaAzonosito);
         });
+
+        ujElem.appendChild(pipa);
+        ujElem.appendChild(szoveg);
+        ujElem.appendChild(torlesGomb);
+
+        lista.appendChild(ujElem);
     });
 }
 
-// Új feladat hozzáadása
-function teendoHozzaadas(gombAzonosito, listaAzonosito) {
-    const gomb = document.getElementById(gombAzonosito);
-    const lista = document.getElementById(listaAzonosito);
 
-    gomb.addEventListener("click", function() {
-        let feladat = prompt("Mi a teendőd?");
+// ÚJ FELADAT HOZZÁADÁSA
+function teendoHozzaadas(gombAzonosito, listaAzonosito, gyujtemeny) {
+
+    const gomb = document.getElementById(gombAzonosito);
+
+    gomb.addEventListener("click", async function() {
+
+        if (!aktualisFelhasznalo) {
+            alert("Először jelentkezz be Google-fiókoddal!");
+            return;
+        }
+
+        const feladat = prompt("Mi a teendőd?");
 
         if (feladat !== null && feladat.trim() !== "") {
-            let ujElem = document.createElement("li");
 
-            // Törlés gomb
-            let torlesGomb = document.createElement("button");
-            torlesGomb.textContent = "X";
-            torlesGomb.classList.add("torlesGomb");
+            try {
+                await addDoc(collection(db, gyujtemeny), {
+                    text: feladat.trim(),
+                    completed: false,
+                    ownerUid: aktualisFelhasznalo.uid,
+                    createdAt: serverTimestamp()
+                });
 
-            torlesGomb.addEventListener("click", function() {
-                ujElem.remove();
-                mentes(listaAzonosito);
-            });
-
-            // Jelölőnégyzet
-            let pipa = document.createElement("input");
-            pipa.type = "checkbox";
-
-            // Feladat szövege
-            let szoveg = document.createElement("span");
-            szoveg.textContent = feladat.trim();
-
-            // Kipipálás
-            pipa.addEventListener("change", function() {
-                if (pipa.checked) {
-                    szoveg.style.textDecoration = "line-through";
-                } else {
-                    szoveg.style.textDecoration = "none";
-                }
-
-                mentes(listaAzonosito);
-            });
-
-            // Elemeink összeállítása
-            ujElem.appendChild(pipa);
-            ujElem.appendChild(szoveg);
-            ujElem.appendChild(torlesGomb);
-
-            lista.appendChild(ujElem);
-
-            mentes(listaAzonosito);
+            } catch (hiba) {
+                console.error("Hozzáadási hiba:", hiba);
+                alert("Nem sikerült hozzáadni a feladatot!");
+            }
         }
     });
 }
 
-// Korábban elmentett feladatok visszatöltése
-visszatoltes("teendoLista");
-visszatoltes("teendoLista2");
 
-// Események hozzárendelése
-esemenyekHozzaadasa("teendoLista");
-esemenyekHozzaadasa("teendoLista2");
+// A KÉT LISTA GOMBJAI
+teendoHozzaadas(
+    "ujTeendoBtn",
+    "teendoLista",
+    "privateTasks"
+);
 
-// Gombok működésének beállítása
-teendoHozzaadas("ujTeendoBtn", "teendoLista");
-teendoHozzaadas("ujTeendoBtn2", "teendoLista2");
+teendoHozzaadas(
+    "ujTeendoBtn2",
+    "teendoLista2",
+    "sharedTasks"
+);
+
+
+// BEJELENTKEZÉSI ÁLLAPOT FIGYELÉSE
+onAuthStateChanged(auth, function(user) {
+
+    aktualisFelhasznalo = user;
+
+    // Korábbi figyelők leállítása
+    if (sajatFigyelo) {
+        sajatFigyelo();
+        sajatFigyelo = null;
+    }
+
+    if (kozosFigyelo) {
+        kozosFigyelo();
+        kozosFigyelo = null;
+    }
+
+    // Listák törlése kijelentkezéskor
+    document.getElementById("teendoLista").innerHTML = "";
+    document.getElementById("teendoLista2").innerHTML = "";
+
+    if (user) {
+
+        felhasznaloNev.textContent =
+            "Bejelentkezve: " + user.displayName;
+
+        // SAJÁT FELADATOK FIGYELÉSE
+        const sajatLekerdezes = query(
+            collection(db, "privateTasks"),
+            where("ownerUid", "==", user.uid)
+        );
+
+        sajatFigyelo = onSnapshot(
+            sajatLekerdezes,
+            function(snapshot) {
+                listaMegjelenitese(
+                    "teendoLista",
+                    snapshot.docs,
+                    "privateTasks"
+                );
+            },
+            function(hiba) {
+                console.error("Saját feladatok hibája:", hiba);
+            }
+        );
+
+        // KÖZÖS FELADATOK FIGYELÉSE
+        kozosFigyelo = onSnapshot(
+            collection(db, "sharedTasks"),
+            function(snapshot) {
+                listaMegjelenitese(
+                    "teendoLista2",
+                    snapshot.docs,
+                    "sharedTasks"
+                );
+            },
+            function(hiba) {
+                console.error("Közös feladatok hibája:", hiba);
+            }
+        );
+
+    } else {
+
+        felhasznaloNev.textContent = "";
+
+    }
+});
