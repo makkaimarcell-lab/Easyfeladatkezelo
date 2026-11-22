@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="hu">
 <head>
@@ -9,27 +10,53 @@
 
 <body>
 
-    <h1>Teendőim</h1>
-<button id="belepesBtn">Bejelentkezés Google-fiókkal</button>
+    <div class="nyelvvalto">
+        <label for="nyelvValaszto" data-i18n="language">Nyelv:</label>
 
-<button id="kijelentkezesBtn">Kijelentkezés</button>
+        <select id="nyelvValaszto">
+            <option value="hu">🇭🇺 Magyar</option>
+            <option value="en">🇬🇧 English</option>
+            <option value="pl">🇵🇱 Polski</option>
+        </select>
+    </div>
 
-<p id="felhasznaloNev"></p>
-    <p>Üdvözöllek a teendőkezelő oldalon!</p>
+    <h1 data-i18n="title">Teendőim</h1>
+
+    <button id="belepesBtn" data-i18n="login">
+        Bejelentkezés Google-fiókkal
+    </button>
+
+    <button id="kijelentkezesBtn" data-i18n="logout">
+        Kijelentkezés
+    </button>
+
+    <p id="felhasznaloNev"></p>
+
+    <p data-i18n="welcome">
+        Üdvözöllek a teendőkezelő oldalon!
+    </p>
 
     <div class="kartya">
-        <h2>Saját teendőim</h2>
+        <h2 data-i18n="privateTitle">Saját teendőim</h2>
+
         <ul id="teendoLista"></ul>
-        <button id="ujTeendoBtn">+ Új saját teendő</button>
+
+        <button id="ujTeendoBtn" data-i18n="privateAdd">
+            + Új saját teendő
+        </button>
     </div>
 
     <div class="kartya">
-        <h2>Közös teendők</h2>
+        <h2 data-i18n="sharedTitle">Közös teendők</h2>
+
         <ul id="teendoLista2"></ul>
-        <button id="ujTeendoBtn2">+ Új közös teendő</button>
+
+        <button id="ujTeendoBtn2" data-i18n="sharedAdd">
+            + Új közös teendő
+        </button>
     </div>
 
-   <script type="module" src="script.js"></script>
+    <script type="module" src="script.js"></script>
 
 </body>
 </html>
