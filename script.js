@@ -22,6 +22,7 @@ import {
     signOut
 } from "https://www.gstatic.com/firebasejs/13.4.0/firebase-auth.js";
 
+
 // FIREBASE BEÁLLÍTÁSOK
 const firebaseConfig = {
     apiKey: "AIzaSyA92juG_RYS36AZYM9NVoLmlGsDoaIPVx0",
@@ -32,6 +33,7 @@ const firebaseConfig = {
     appId: "1:1083951304432:web:aeb8ad3ab1c4c842423c35"
 };
 
+
 // FIREBASE ELINDÍTÁSA
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
@@ -39,21 +41,39 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
+
 // HTML ELEMEK
 const belepesBtn = document.getElementById("belepesBtn");
 const kijelentkezesBtn = document.getElementById("kijelentkezesBtn");
 const felhasznaloNev = document.getElementById("felhasznaloNev");
 const nyelvValaszto = document.getElementById("nyelvValaszto");
 
+const ertesitesEngedelyezesBtn =
+    document.getElementById("ertesitesEngedelyezesBtn");
+
+const ertesitesAllapot =
+    document.getElementById("ertesitesAllapot");
+
+
 // AKTUÁLIS FELHASZNÁLÓ
 let aktualisFelhasznalo = null;
+
 
 // ADATBÁZIS FIGYELŐK
 let sajatFigyelo = null;
 let kozosFigyelo = null;
 
-// AKTUÁLIS NYELV
+
+// NYELV
 let aktualisNyelv = "hu";
+
+
+// FELADATOK
+let osszesFeladat = [];
+
+
+// KÖZÖS LISTA ELSŐ BETÖLTÉSE
+let kozosElsoBetoltes = true;
 
 
 // NYELVI SZÖVEGEK
@@ -79,7 +99,21 @@ const szovegek = {
         saveError: "Nem sikerült menteni a módosítást!",
         editError: "Nem sikerült módosítani a feladatot!",
         deleteError: "Nem sikerült törölni a feladatot!",
-        addError: "Nem sikerült hozzáadni a feladatot!"
+        addError: "Nem sikerült hozzáadni a feladatot!",
+
+        dateQuestion: "Mikor jár le a feladat? (ÉÉÉÉ-HH-NN)",
+        timeQuestion: "Hány órakor jár le? (ÓÓ:PP)",
+        invalidDate: "Hibás dátum vagy időpont!",
+        pastDate: "A határidőnek a jövőben kell lennie!",
+        deadline: "Határidő: ",
+        noDeadline: "Nincs határidő",
+        reminder60: "1 óra múlva lejár a feladatod: ",
+        reminder15: "15 perc múlva lejár a feladatod: ",
+        sharedNotification: "Új közös feladat",
+        sharedAdded: " új feladatot adott a közös listához: ",
+        notificationOn: "Az értesítések engedélyezve vannak.",
+        notificationOff: "Az értesítések nincsenek engedélyezve.",
+        notificationError: "Nem sikerült engedélyezni az értesítéseket."
     },
 
     en: {
@@ -96,13 +130,27 @@ const szovegek = {
         loggedIn: "Signed in as: ",
         loginError: "Could not sign in!",
         logoutError: "Could not sign out!",
-        loginFirst: "Please sign in with your Google account first!",
+        loginFirst: "Please sign in first!",
         newTask: "What do you need to do?",
         editTask: "Edit the task:",
         saveError: "Could not save the changes!",
         editError: "Could not edit the task!",
         deleteError: "Could not delete the task!",
-        addError: "Could not add the task!"
+        addError: "Could not add the task!",
+
+        dateQuestion: "When is the deadline? (YYYY-MM-DD)",
+        timeQuestion: "At what time? (HH:MM)",
+        invalidDate: "Invalid date or time!",
+        pastDate: "The deadline must be in the future!",
+        deadline: "Deadline: ",
+        noDeadline: "No deadline",
+        reminder60: "Your task is due in 1 hour: ",
+        reminder15: "Your task is due in 15 minutes: ",
+        sharedNotification: "New shared task",
+        sharedAdded: " added a new task to the shared list: ",
+        notificationOn: "Notifications are enabled.",
+        notificationOff: "Notifications are not enabled.",
+        notificationError: "Could not enable notifications."
     },
 
     pl: {
@@ -119,13 +167,27 @@ const szovegek = {
         loggedIn: "Zalogowano jako: ",
         loginError: "Nie udało się zalogować!",
         logoutError: "Nie udało się wylogować!",
-        loginFirst: "Najpierw zaloguj się przez konto Google!",
+        loginFirst: "Najpierw zaloguj się!",
         newTask: "Co masz do zrobienia?",
         editTask: "Edytuj zadanie:",
         saveError: "Nie udało się zapisać zmian!",
         editError: "Nie udało się edytować zadania!",
         deleteError: "Nie udało się usunąć zadania!",
-        addError: "Nie udało się dodać zadania!"
+        addError: "Nie udało się dodać zadania!",
+
+        dateQuestion: "Kiedy upływa termin? (RRRR-MM-DD)",
+        timeQuestion: "O której godzinie? (GG:MM)",
+        invalidDate: "Nieprawidłowa data lub godzina!",
+        pastDate: "Termin musi być w przyszłości!",
+        deadline: "Termin: ",
+        noDeadline: "Brak terminu",
+        reminder60: "Zadanie upływa za godzinę: ",
+        reminder15: "Zadanie upływa za 15 minut: ",
+        sharedNotification: "Nowe wspólne zadanie",
+        sharedAdded: " dodał nowe zadanie do wspólnej listy: ",
+        notificationOn: "Powiadomienia są włączone.",
+        notificationOff: "Powiadomienia nie są włączone.",
+        notificationError: "Nie udało się włączyć powiadomień."
     }
 
 };
@@ -138,10 +200,8 @@ function nyelvBeallitasa(nyelv) {
 
     const szoveg = szovegek[nyelv];
 
-    // HTML NYELVÉNEK BEÁLLÍTÁSA
     document.documentElement.lang = nyelv;
 
-    // ÁLLANDÓ SZÖVEGEK FORDÍTÁSA
     document.querySelectorAll("[data-i18n]").forEach(function(elem) {
 
         const kulcs = elem.getAttribute("data-i18n");
@@ -152,7 +212,6 @@ function nyelvBeallitasa(nyelv) {
 
     });
 
-    // BEJELENTKEZETT FELHASZNÁLÓ NEVE
     if (aktualisFelhasznalo) {
 
         felhasznaloNev.textContent =
@@ -160,18 +219,18 @@ function nyelvBeallitasa(nyelv) {
 
     }
 
+    ertesitesAllapotFrissitese();
+
 }
 
 
-// NYELVVÁLTÓ MŰKÖDÉSE
+// NYELVVÁLTÁS
 nyelvValaszto.addEventListener("change", function() {
 
     nyelvBeallitasa(nyelvValaszto.value);
 
 });
 
-
-// ALAPÉRTELMEZETT NYELV
 nyelvBeallitasa("hu");
 
 
@@ -185,7 +244,6 @@ belepesBtn.addEventListener("click", async function() {
     } catch (hiba) {
 
         console.error("Bejelentkezési hiba:", hiba);
-
         alert(szovegek[aktualisNyelv].loginError);
 
     }
@@ -193,7 +251,7 @@ belepesBtn.addEventListener("click", async function() {
 });
 
 
-// GOOGLE KIJELENTKEZÉS
+// KIJELENTKEZÉS
 kijelentkezesBtn.addEventListener("click", async function() {
 
     try {
@@ -203,12 +261,104 @@ kijelentkezesBtn.addEventListener("click", async function() {
     } catch (hiba) {
 
         console.error("Kijelentkezési hiba:", hiba);
-
         alert(szovegek[aktualisNyelv].logoutError);
 
     }
 
 });
+
+
+// ÉRTESÍTÉSEK ÁLLAPOTA
+function ertesitesAllapotFrissitese() {
+
+    if (!("Notification" in window)) {
+
+        ertesitesAllapot.textContent =
+            "Ez a böngésző nem támogatja az értesítéseket.";
+
+        return;
+
+    }
+
+    if (Notification.permission === "granted") {
+
+        ertesitesAllapot.textContent =
+            szovegek[aktualisNyelv].notificationOn;
+
+    } else {
+
+        ertesitesAllapot.textContent =
+            szovegek[aktualisNyelv].notificationOff;
+
+    }
+
+}
+
+
+// ÉRTESÍTÉSEK ENGEDÉLYEZÉSE
+ertesitesEngedelyezesBtn.addEventListener("click", async function() {
+
+    if (!("Notification" in window)) {
+
+        alert("A böngésződ nem támogatja az értesítéseket.");
+        return;
+
+    }
+
+    try {
+
+        const engedely = await Notification.requestPermission();
+
+        ertesitesAllapotFrissitese();
+
+        if (engedely !== "granted") {
+
+            alert(szovegek[aktualisNyelv].notificationError);
+
+        }
+
+    } catch (hiba) {
+
+        console.error("Értesítési hiba:", hiba);
+
+    }
+
+});
+
+ertesitesAllapotFrissitese();
+
+
+// ÉRTESÍTÉS KÜLDÉSE
+function ertesitesKuldes(cim, szoveg) {
+
+    if (
+        !("Notification" in window) ||
+        Notification.permission !== "granted"
+    ) {
+        return;
+    }
+
+    try {
+
+        const ertesites = new Notification(cim, {
+            body: szoveg,
+            icon: "./favicon.ico"
+        });
+
+        ertesites.onclick = function() {
+
+            window.focus();
+            ertesites.close();
+
+        };
+
+    } catch (hiba) {
+
+        console.error("Értesítés küldési hiba:", hiba);
+
+    }
+
+}
 
 
 // FELADATLISTA MEGJELENÍTÉSE
@@ -238,6 +388,28 @@ function listaMegjelenitese(listaAzonosito, dokumentumok, gyujtemeny) {
         szoveg.style.textDecoration =
             pipa.checked ? "line-through" : "none";
 
+        // HATÁRIDŐ MEGJELENÍTÉSE
+        const hatarido = document.createElement("small");
+
+        if (adat.dueAt) {
+
+            const datum = new Date(adat.dueAt);
+
+            hatarido.textContent =
+                " | " +
+                szovegek[aktualisNyelv].deadline +
+                datum.toLocaleString(
+                    aktualisNyelv === "hu" ? "hu-HU" :
+                    aktualisNyelv === "pl" ? "pl-PL" : "en-GB"
+                );
+
+        } else {
+
+            hatarido.textContent =
+                " | " + szovegek[aktualisNyelv].noDeadline;
+
+        }
+
         // TÖRLÉS GOMB
         const torlesGomb = document.createElement("button");
 
@@ -259,14 +431,13 @@ function listaMegjelenitese(listaAzonosito, dokumentumok, gyujtemeny) {
             } catch (hiba) {
 
                 console.error("Mentési hiba:", hiba);
-
                 alert(szovegek[aktualisNyelv].saveError);
 
             }
 
         });
 
-        // SZERKESZTÉS DUPLA KATTINTÁSSAL
+        // SZERKESZTÉS
         szoveg.addEventListener("dblclick", async function() {
 
             const ujSzoveg = prompt(
@@ -288,7 +459,6 @@ function listaMegjelenitese(listaAzonosito, dokumentumok, gyujtemeny) {
                 } catch (hiba) {
 
                     console.error("Szerkesztési hiba:", hiba);
-
                     alert(szovegek[aktualisNyelv].editError);
 
                 }
@@ -309,7 +479,6 @@ function listaMegjelenitese(listaAzonosito, dokumentumok, gyujtemeny) {
             } catch (hiba) {
 
                 console.error("Törlési hiba:", hiba);
-
                 alert(szovegek[aktualisNyelv].deleteError);
 
             }
@@ -318,6 +487,7 @@ function listaMegjelenitese(listaAzonosito, dokumentumok, gyujtemeny) {
 
         ujElem.appendChild(pipa);
         ujElem.appendChild(szoveg);
+        ujElem.appendChild(hatarido);
         ujElem.appendChild(torlesGomb);
 
         lista.appendChild(ujElem);
@@ -337,7 +507,6 @@ function teendoHozzaadas(gombAzonosito, gyujtemeny) {
         if (!aktualisFelhasznalo) {
 
             alert(szovegek[aktualisNyelv].loginFirst);
-
             return;
 
         }
@@ -346,26 +515,71 @@ function teendoHozzaadas(gombAzonosito, gyujtemeny) {
             szovegek[aktualisNyelv].newTask
         );
 
-        if (feladat !== null && feladat.trim() !== "") {
+        if (feladat === null || feladat.trim() === "") {
+            return;
+        }
 
-            try {
+        // DÁTUM
+        const datum = prompt(
+            szovegek[aktualisNyelv].dateQuestion
+        );
 
-                await addDoc(collection(db, gyujtemeny), {
+        if (datum === null) {
+            return;
+        }
 
-                    text: feladat.trim(),
-                    completed: false,
-                    ownerUid: aktualisFelhasznalo.uid,
-                    createdAt: serverTimestamp()
+        // IDŐPONT
+        const ido = prompt(
+            szovegek[aktualisNyelv].timeQuestion,
+            "18:00"
+        );
 
-                });
+        if (ido === null) {
+            return;
+        }
 
-            } catch (hiba) {
+        // HATÁRIDŐ ELLENŐRZÉSE
+        const datumIdo = new Date(`${datum}T${ido}`);
 
-                console.error("Hozzáadási hiba:", hiba);
+        if (
+            !/^\d{4}-\d{2}-\d{2}$/.test(datum) ||
+            !/^\d{2}:\d{2}$/.test(ido) ||
+            isNaN(datumIdo.getTime()) ||
+            datumIdo.getFullYear() !== Number(datum.slice(0, 4)) ||
+            datumIdo.getMonth() + 1 !== Number(datum.slice(5, 7)) ||
+            datumIdo.getDate() !== Number(datum.slice(8, 10)) ||
+            datumIdo.getHours() !== Number(ido.slice(0, 2)) ||
+            datumIdo.getMinutes() !== Number(ido.slice(3, 5))
+        ) {
 
-                alert(szovegek[aktualisNyelv].addError);
+            alert(szovegek[aktualisNyelv].invalidDate);
+            return;
 
-            }
+        }
+
+        if (datumIdo.getTime() <= Date.now()) {
+
+            alert(szovegek[aktualisNyelv].pastDate);
+            return;
+
+        }
+
+        try {
+
+            await addDoc(collection(db, gyujtemeny), {
+
+                text: feladat.trim(),
+                completed: false,
+                ownerUid: aktualisFelhasznalo.uid,
+                createdAt: serverTimestamp(),
+                dueAt: datumIdo.getTime()
+
+            });
+
+        } catch (hiba) {
+
+            console.error("Hozzáadási hiba:", hiba);
+            alert(szovegek[aktualisNyelv].addError);
 
         }
 
@@ -374,16 +588,123 @@ function teendoHozzaadas(gombAzonosito, gyujtemeny) {
 }
 
 
-// A KÉT LISTA GOMBJAI
-teendoHozzaadas(
-    "ujTeendoBtn",
-    "privateTasks"
-);
+// LISTAGOMBOK
+teendoHozzaadas("ujTeendoBtn", "privateTasks");
+teendoHozzaadas("ujTeendoBtn2", "sharedTasks");
 
-teendoHozzaadas(
-    "ujTeendoBtn2",
-    "sharedTasks"
-);
+
+// KÖZÖS LISTA ÚJ FELADATAINAK FIGYELÉSE
+function kozosValtozasFigyelese(snapshot) {
+
+    if (kozosElsoBetoltes) {
+
+        kozosElsoBetoltes = false;
+        return;
+
+    }
+
+    snapshot.docChanges().forEach(function(valtozas) {
+
+        if (valtozas.type !== "added") {
+            return;
+        }
+
+        const adat = valtozas.doc.data();
+
+        // Saját hozzáadásról nem küldünk értesítést
+        if (
+            !aktualisFelhasznalo ||
+            adat.ownerUid === aktualisFelhasznalo.uid
+        ) {
+            return;
+        }
+
+        const nev = adat.ownerName || "Egy felhasználó";
+
+        ertesitesKuldes(
+            szovegek[aktualisNyelv].sharedNotification,
+            nev +
+            szovegek[aktualisNyelv].sharedAdded +
+            adat.text
+        );
+
+    });
+
+}
+
+
+// HATÁRIDŐK ELLENŐRZÉSE
+function hataridokEllenorzese() {
+
+    if (
+        !aktualisFelhasznalo ||
+        !("Notification" in window) ||
+        Notification.permission !== "granted"
+    ) {
+        return;
+
+    }
+
+    const most = Date.now();
+
+    osszesFeladat.forEach(function(feladat) {
+
+        const adat = feladat.adat;
+
+        if (
+            !adat.dueAt ||
+            adat.completed
+        ) {
+            return;
+        }
+
+        const hatarido = Number(adat.dueAt);
+
+        const kulcs60 =
+            `ertesites_60_${feladat.gyujtemeny}_${feladat.id}`;
+
+        const kulcs15 =
+            `ertesites_15_${feladat.gyujtemeny}_${feladat.id}`;
+
+        // 1 ÓRÁS ÉRTESÍTÉS
+        if (
+            most >= hatarido - 60 * 60 * 1000 &&
+            most < hatarido &&
+            !localStorage.getItem(kulcs60)
+        ) {
+
+            ertesitesKuldes(
+                "Easy-Feladatkezelo",
+                szovegek[aktualisNyelv].reminder60 + adat.text
+            );
+
+            localStorage.setItem(kulcs60, "true");
+
+        }
+
+        // 15 PERCES ÉRTESÍTÉS
+        if (
+            most >= hatarido - 15 * 60 * 1000 &&
+            most < hatarido &&
+            !localStorage.getItem(kulcs15)
+        ) {
+
+            ertesitesKuldes(
+                "Easy-Feladatkezelo",
+                szovegek[aktualisNyelv].reminder15 + adat.text
+            );
+
+            localStorage.setItem(kulcs15, "true");
+
+        }
+
+    });
+
+}
+
+
+// HATÁRIDŐK ELLENŐRZÉSE 15 MÁSODPERCENKÉNT
+setInterval(hataridokEllenorzese, 15000);
 
 
 // BEJELENTKEZÉSI ÁLLAPOT FIGYELÉSE
@@ -391,20 +712,19 @@ onAuthStateChanged(auth, function(user) {
 
     aktualisFelhasznalo = user;
 
-    // KORÁBBI FIGYELŐK LEÁLLÍTÁSA
+    // RÉGI FIGYELŐK LEÁLLÍTÁSA
     if (sajatFigyelo) {
-
         sajatFigyelo();
         sajatFigyelo = null;
-
     }
 
     if (kozosFigyelo) {
-
         kozosFigyelo();
         kozosFigyelo = null;
-
     }
+
+    osszesFeladat = [];
+    kozosElsoBetoltes = true;
 
     // LISTÁK TÖRLÉSE
     document.getElementById("teendoLista").innerHTML = "";
@@ -415,7 +735,7 @@ onAuthStateChanged(auth, function(user) {
         felhasznaloNev.textContent =
             szovegek[aktualisNyelv].loggedIn + user.displayName;
 
-        // SAJÁT FELADATOK FIGYELÉSE
+        // SAJÁT FELADATOK
         const sajatLekerdezes = query(
             collection(db, "privateTasks"),
             where("ownerUid", "==", user.uid)
@@ -432,17 +752,29 @@ onAuthStateChanged(auth, function(user) {
                     "privateTasks"
                 );
 
+                osszesFeladat = osszesFeladat.filter(
+                    f => f.gyujtemeny !== "privateTasks"
+                );
+
+                snapshot.docs.forEach(function(dokumentum) {
+
+                    osszesFeladat.push({
+                        id: dokumentum.id,
+                        adat: dokumentum.data(),
+                        gyujtemeny: "privateTasks"
+                    });
+
+                });
+
             },
 
             function(hiba) {
-
                 console.error("Saját feladatok hibája:", hiba);
-
             }
         );
 
 
-        // KÖZÖS FELADATOK FIGYELÉSE
+        // KÖZÖS FELADATOK
         kozosFigyelo = onSnapshot(
             collection(db, "sharedTasks"),
 
@@ -454,12 +786,26 @@ onAuthStateChanged(auth, function(user) {
                     "sharedTasks"
                 );
 
+                kozosValtozasFigyelese(snapshot);
+
+                osszesFeladat = osszesFeladat.filter(
+                    f => f.gyujtemeny !== "sharedTasks"
+                );
+
+                snapshot.docs.forEach(function(dokumentum) {
+
+                    osszesFeladat.push({
+                        id: dokumentum.id,
+                        adat: dokumentum.data(),
+                        gyujtemeny: "sharedTasks"
+                    });
+
+                });
+
             },
 
             function(hiba) {
-
                 console.error("Közös feladatok hibája:", hiba);
-
             }
         );
 
@@ -470,3 +816,4 @@ onAuthStateChanged(auth, function(user) {
     }
 
 });
+
