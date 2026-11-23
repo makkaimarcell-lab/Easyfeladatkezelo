@@ -497,6 +497,111 @@ function listaMegjelenitese(listaAzonosito, dokumentumok, gyujtemeny) {
 }
 
 
+
+// DÁTUM- ÉS IDŐVÁLASZTÓ
+function datumIdoValasztasa() {
+
+    return new Promise(function(resolve) {
+
+        const dialog = document.createElement("dialog");
+
+        dialog.style.padding = "25px";
+        dialog.style.border = "none";
+        dialog.style.borderRadius = "12px";
+        dialog.style.maxWidth = "350px";
+        dialog.style.width = "85%";
+
+        const cim = document.createElement("h2");
+        cim.textContent = "Határidő beállítása";
+
+        const datumLabel = document.createElement("label");
+        datumLabel.textContent = "Dátum:";
+        datumLabel.style.display = "block";
+        datumLabel.style.marginTop = "15px";
+
+        const datumInput = document.createElement("input");
+        datumInput.type = "date";
+        datumInput.required = true;
+        datumInput.style.display = "block";
+        datumInput.style.width = "100%";
+        datumInput.style.boxSizing = "border-box";
+        datumInput.style.padding = "10px";
+
+        const idoLabel = document.createElement("label");
+        idoLabel.textContent = "Időpont:";
+        idoLabel.style.display = "block";
+        idoLabel.style.marginTop = "15px";
+
+        const idoInput = document.createElement("input");
+        idoInput.type = "time";
+        idoInput.required = true;
+        idoInput.style.display = "block";
+        idoInput.style.width = "100%";
+        idoInput.style.boxSizing = "border-box";
+        idoInput.style.padding = "10px";
+
+        const gombok = document.createElement("div");
+        gombok.style.display = "flex";
+        gombok.style.gap = "10px";
+        gombok.style.marginTop = "20px";
+
+        const megseGomb = document.createElement("button");
+        megseGomb.type = "button";
+        megseGomb.textContent = "Mégse";
+
+        const mentesGomb = document.createElement("button");
+        mentesGomb.type = "submit";
+        mentesGomb.textContent = "Mentés";
+
+        const form = document.createElement("form");
+
+        form.appendChild(cim);
+        form.appendChild(datumLabel);
+        form.appendChild(datumInput);
+        form.appendChild(idoLabel);
+        form.appendChild(idoInput);
+
+        gombok.appendChild(megseGomb);
+        gombok.appendChild(mentesGomb);
+
+        form.appendChild(gombok);
+        dialog.appendChild(form);
+
+        document.body.appendChild(dialog);
+
+        form.addEventListener("submit", function(e) {
+
+            e.preventDefault();
+
+            if (!datumInput.value || !idoInput.value) {
+                return;
+            }
+
+            resolve({
+                datum: datumInput.value,
+                ido: idoInput.value
+            });
+
+            dialog.close();
+
+        });
+
+        megseGomb.addEventListener("click", function() {
+            dialog.close();
+        });
+
+        dialog.addEventListener("close", function() {
+            dialog.remove();
+            resolve(null);
+        });
+
+        dialog.showModal();
+
+    });
+
+}
+
+
 // ÚJ FELADAT HOZZÁADÁSA
 function teendoHozzaadas(gombAzonosito, gyujtemeny) {
 
@@ -519,37 +624,23 @@ function teendoHozzaadas(gombAzonosito, gyujtemeny) {
             return;
         }
 
-        // DÁTUM
-        const datum = prompt(
-            szovegek[aktualisNyelv].dateQuestion
-        );
+        // DÁTUM ÉS IDŐPONT KIVÁLASZTÁSA
+        const valasztas = await datumIdoValasztasa();
 
-        if (datum === null) {
+        if (!valasztas) {
             return;
         }
 
-        // IDŐPONT
-        const ido = prompt(
-            szovegek[aktualisNyelv].timeQuestion,
-            "18:00"
+        const datumIdo = new Date(
+            `${valasztas.datum}T${valasztas.ido}`
         );
-
-        if (ido === null) {
-            return;
-        }
 
         // HATÁRIDŐ ELLENŐRZÉSE
-        const datumIdo = new Date(`${datum}T${ido}`);
-
         if (
-            !/^\d{4}-\d{2}-\d{2}$/.test(datum) ||
-            !/^\d{2}:\d{2}$/.test(ido) ||
             isNaN(datumIdo.getTime()) ||
-            datumIdo.getFullYear() !== Number(datum.slice(0, 4)) ||
-            datumIdo.getMonth() + 1 !== Number(datum.slice(5, 7)) ||
-            datumIdo.getDate() !== Number(datum.slice(8, 10)) ||
-            datumIdo.getHours() !== Number(ido.slice(0, 2)) ||
-            datumIdo.getMinutes() !== Number(ido.slice(3, 5))
+            datumIdo.getFullYear() !== Number(valasztas.datum.slice(0, 4)) ||
+            datumIdo.getMonth() + 1 !== Number(valasztas.datum.slice(5, 7)) ||
+            datumIdo.getDate() !== Number(valasztas.datum.slice(8, 10))
         ) {
 
             alert(szovegek[aktualisNyelv].invalidDate);
@@ -571,6 +662,7 @@ function teendoHozzaadas(gombAzonosito, gyujtemeny) {
                 text: feladat.trim(),
                 completed: false,
                 ownerUid: aktualisFelhasznalo.uid,
+                ownerName: aktualisFelhasznalo.displayName || "Felhasználó",
                 createdAt: serverTimestamp(),
                 dueAt: datumIdo.getTime()
 
@@ -586,7 +678,6 @@ function teendoHozzaadas(gombAzonosito, gyujtemeny) {
     });
 
 }
-
 
 // LISTAGOMBOK
 teendoHozzaadas("ujTeendoBtn", "privateTasks");
@@ -816,4 +907,5 @@ onAuthStateChanged(auth, function(user) {
     }
 
 });
+
 
